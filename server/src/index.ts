@@ -39,7 +39,8 @@ cron.schedule('0 8 * * *', () => {
     { label: '1 day', days: 1 },
   ];
 
-  db.all('SELECT * FROM parts', [], (err, rows) => {
+  // Only check ACTIVE parts
+  db.all('SELECT * FROM parts WHERE status = ?', ['active'], (err, rows) => {
     if (err) {
       console.error('Error fetching parts for cron:', err);
       return;
@@ -58,7 +59,6 @@ cron.schedule('0 8 * * *', () => {
       } else if (diffDays === 0) {
         messages.push(`🚨 **URGENT:** Part "${part.part_name}" expires **TODAY**!`);
       } else if (diffDays < 0 && diffDays > -7) {
-        // Remind for up to a week after expiry
         messages.push(`❌ **EXPIRED:** Part "${part.part_name}" expired ${Math.abs(diffDays)} days ago!`);
       }
     });
@@ -73,18 +73,18 @@ cron.schedule('0 8 * * *', () => {
 
 // Get all parts
 app.get('/api/parts', (req, res) => {
-  db.all('SELECT * FROM parts ORDER BY expiry_date ASC', [], (err, rows) => {
+  db.all('SELECT * FROM parts ORDER BY CASE WHEN status = \'active\' THEN 0 WHEN status = \'expired\' THEN 1 ELSE 2 END, expiry_date ASC', [], (err, rows) => {
     if (err) res.status(500).json({ error: err.message });
     else res.json(rows);
   });
 });
 
-// Add a part
+// Add a part (no expiry_date needed — starts as in_stock)
 app.post('/api/parts', (req, res) => {
-  const { part_name, serial_number, quantity, expiry_date } = req.body;
+  const { part_name, serial_number, quantity } = req.body;
   db.run(
-    'INSERT INTO parts (part_name, serial_number, quantity, expiry_date) VALUES (?, ?, ?, ?)',
-    [part_name, serial_number, quantity, expiry_date],
+    'INSERT INTO parts (part_name, serial_number, quantity, status) VALUES (?, ?, ?, ?)',
+    [part_name, serial_number, quantity || 1, 'in_stock'],
     function (err) {
       if (err) res.status(500).json({ error: err.message });
       else res.json({ id: this.lastID });
@@ -94,11 +94,11 @@ app.post('/api/parts', (req, res) => {
 
 // Update a part
 app.put('/api/parts/:id', (req, res) => {
-  const { part_name, serial_number, quantity, expiry_date } = req.body;
+  const { part_name, serial_number, quantity } = req.body;
   const { id } = req.params;
   db.run(
-    'UPDATE parts SET part_name = ?, serial_number = ?, quantity = ?, expiry_date = ? WHERE id = ?',
-    [part_name, serial_number, quantity, expiry_date, id],
+    'UPDATE parts SET part_name = ?, serial_number = ?, quantity = ? WHERE id = ?',
+    [part_name, serial_number, quantity, id],
     function (err) {
       if (err) res.status(500).json({ error: err.message });
       else res.json({ changes: this.changes });
@@ -113,6 +113,43 @@ app.delete('/api/parts/:id', (req, res) => {
     if (err) res.status(500).json({ error: err.message });
     else res.json({ changes: this.changes });
   });
+});
+
+// Activate a part
+app.post('/api/parts/:id/activate', (req, res) => {
+  const { id } = req.params;
+  const { duration_days } = req.body;
+
+  if (!duration_days || duration_days <= 0) {
+    return res.status(400).json({ error: 'duration_days is required and must be positive' });
+  }
+
+  const now = new Date();
+  const activated_at = now.toISOString();
+  const expiry = new Date(now.getTime() + duration_days * 24 * 60 * 60 * 1000);
+  const expiry_date = expiry.toISOString();
+
+  db.run(
+    'UPDATE parts SET status = ?, activated_at = ?, expiry_date = ? WHERE id = ?',
+    ['active', activated_at, expiry_date, id],
+    function (err) {
+      if (err) res.status(500).json({ error: err.message });
+      else res.json({ success: true, expiry_date, activated_at });
+    }
+  );
+});
+
+// Deactivate a part (reset to in_stock)
+app.post('/api/parts/:id/deactivate', (req, res) => {
+  const { id } = req.params;
+  db.run(
+    'UPDATE parts SET status = ?, activated_at = \'\', expiry_date = \'\' WHERE id = ?',
+    ['in_stock', id],
+    function (err) {
+      if (err) res.status(500).json({ error: err.message });
+      else res.json({ success: true });
+    }
+  );
 });
 
 // Setup Settings (Client ID & Secret)

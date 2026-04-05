@@ -1,19 +1,23 @@
 import { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
-import { LayoutDashboard, Settings as SettingsIcon, Package, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Settings as SettingsIcon, Package, LogOut, Menu, X, Search } from 'lucide-react';
 import Dashboard from './pages/Dashboard.tsx';
 import PartsManagement from './pages/PartsManagement.tsx';
 import SettingsPage from './pages/SettingsPage.tsx';
+import SearchPage from './pages/SearchPage.tsx';
+import { useLanguage } from './context/LanguageContext';
 
 // A small wrapper to handle sidebar closing on route change automatically for mobile
 function NavLinks({ closeSidebar }: { closeSidebar: () => void }) {
   const location = useLocation();
+  const { t } = useLanguage();
   
   const links = [
-    { name: 'Dashboard', path: '/', icon: LayoutDashboard, color: 'text-blue-500' },
-    { name: 'Parts Inventory', path: '/parts', icon: Package, color: 'text-indigo-500' },
-    { name: 'Settings', path: '/settings', icon: SettingsIcon, color: 'text-slate-500' },
+    { name: t('sidebar.dashboard'), path: '/', icon: LayoutDashboard, color: 'text-blue-500' },
+    { name: t('sidebar.inventory'), path: '/parts', icon: Package, color: 'text-indigo-500' },
+    { name: t('sidebar.search'), path: '/search', icon: Search, color: 'text-violet-500' },
+    { name: t('sidebar.settings'), path: '/settings', icon: SettingsIcon, color: 'text-slate-500' },
   ];
 
   return (
@@ -30,7 +34,7 @@ function NavLinks({ closeSidebar }: { closeSidebar: () => void }) {
           }`}
         >
           <link.icon className={`w-5 h-5 ${link.color}`} />
-          <span className="font-medium">{link.name}</span>
+          <span className="font-medium text-sm md:text-base">{link.name}</span>
         </Link>
       ))}
     </nav>
@@ -39,6 +43,7 @@ function NavLinks({ closeSidebar }: { closeSidebar: () => void }) {
 
 function App() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { t } = useLanguage();
 
   return (
     <Router>
@@ -90,10 +95,11 @@ function App() {
             
             <NavLinks closeSidebar={() => setIsSidebarOpen(false)} />
           </div>
+
           <div className="p-6 border-t border-slate-50 dark:border-slate-700/50">
             <button className="flex items-center gap-3 text-slate-500 hover:text-red-500 transition-colors w-full text-left px-2 py-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/10">
               <LogOut className="w-5 h-5" />
-              <span className="font-medium">Logout / Exit</span>
+              <span className="font-medium text-sm md:text-base">{t('sidebar.logout')}</span>
             </button>
           </div>
         </aside>
@@ -104,6 +110,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Dashboard />} />
               <Route path="/parts" element={<PartsManagement />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/settings" element={<SettingsPage />} />
             </Routes>
           </div>

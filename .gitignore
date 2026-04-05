@@ -1,18 +1,29 @@
-# Dependency directories
+# Dependencies
 node_modules/
+**/node_modules/
 
 # Build outputs
+dist/
+build/
+out/
 client/dist/
+server/dist/
+desktop/client-dist/
+desktop/server-dist/
 desktop/build/
 desktop/dist/
+desktop/out/
 
 # SQLite database
+*.sqlite
+*.db
+!example.db
 server/data.db
-server/uploads/
 
 # Environment variables
 .env
-.env.local
+.env.*
+!.env.example
 
 # IDE and system files
 .vscode/
@@ -20,3 +31,11 @@ server/uploads/
 .DS_Store
 Thumbs.db
 *.log
+
+# Misc
+.DS_Store
+*.seed
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
