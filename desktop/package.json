@@ -4,14 +4,42 @@
   "description": "",
   "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "electron ."
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.nonx2360.machinetrack",
+    "productName": "MachineTrack",
+    "win": {
+      "target": "portable"
+    },
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "client-dist/**/*",
+      "server-dist/**/*",
+      "node_modules/**/*",
+      "package.json"
+    ],
+    "asar": true
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^41.1.1"
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "axios": "^1.14.0",
+    "cors": "^2.8.6",
+    "dayjs": "^1.11.20",
+    "express": "^5.2.1",
+    "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
+    "sqlite3": "^6.0.1"
   }
 }
