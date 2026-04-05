@@ -1,0 +1,22 @@
+# Dependency directories
+node_modules/
+
+# Build outputs
+client/dist/
+desktop/build/
+desktop/dist/
+
+# SQLite database
+server/data.db
+server/uploads/
+
+# Environment variables
+.env
+.env.local
+
+# IDE and system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
