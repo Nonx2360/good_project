@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store';
-import { AlertTriangle, Clock, ShieldCheck, Package, Timer, CalendarClock, TrendingDown } from 'lucide-react';
+import { AlertTriangle, ShieldCheck, Package, Timer, CalendarClock, TrendingDown, Clock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import dayjs from 'dayjs';
@@ -38,7 +38,7 @@ function CountdownTimer({ expiryDate }: { expiryDate: string }) {
       const s = totalSec % 60;
 
       setTimeLeft(
-        `${d}d ${h.toString().padStart(2,'0')}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`
+        `${d}d ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
       );
     };
 
@@ -47,10 +47,18 @@ function CountdownTimer({ expiryDate }: { expiryDate: string }) {
     return () => clearInterval(interval);
   }, [expiryDate, t]);
 
-  return <span className="font-mono text-xs tabular-nums tracking-wide">{timeLeft}</span>;
+  return (
+    <span
+      className="badge badge--alert"
+      style={{ fontFamily: 'var(--font-family-mono)', fontSize: '0.7rem' }}
+    >
+      <Timer size={10} aria-hidden="true" />
+      {timeLeft}
+    </span>
+  );
 }
 
-const PIE_COLORS = ['#818CF8', '#34D399', '#FBBF24', '#F87171'];
+const PIE_COLORS = ['#5E667A', '#9BA1B0', '#FF453A', '#2B303B'];
 
 export default function Dashboard() {
   const { parts, stats, fetchParts } = useStore();
@@ -69,36 +77,32 @@ export default function Dashboard() {
 
   const statCards = [
     {
+      id: 'in-stock',
       title: t('dashboard.statInStock'),
       value: stats.inStock,
       icon: Package,
-      gradient: 'from-indigo-500 to-violet-500',
-      iconBg: 'bg-indigo-500/10',
-      iconColor: 'text-indigo-500',
+      isAlert: false,
     },
     {
+      id: 'active',
       title: t('dashboard.statActive'),
       value: stats.active,
       icon: ShieldCheck,
-      gradient: 'from-emerald-500 to-teal-500',
-      iconBg: 'bg-emerald-500/10',
-      iconColor: 'text-emerald-500',
+      isAlert: false,
     },
     {
+      id: 'expiring',
       title: t('dashboard.statExpiring'),
       value: stats.warning,
       icon: Clock,
-      gradient: 'from-amber-500 to-orange-500',
-      iconBg: 'bg-amber-500/10',
-      iconColor: 'text-amber-500',
+      isAlert: stats.warning > 0,
     },
     {
+      id: 'expired',
       title: t('dashboard.statExpired'),
       value: stats.expired,
       icon: AlertTriangle,
-      gradient: 'from-rose-500 to-red-500',
-      iconBg: 'bg-rose-500/10',
-      iconColor: 'text-rose-500',
+      isAlert: stats.expired > 0,
     },
   ];
 
@@ -110,152 +114,203 @@ export default function Dashboard() {
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="p-4 md:p-8 h-full flex flex-col gap-6"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
     >
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight">{t('dashboard.title')}</h2>
-        <p className="text-slate-400 text-sm mt-1">{t('dashboard.subtitle')}</p>
-      </div>
+      {/* Page Header */}
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('dashboard.title')}</h1>
+          <p className="page-subtitle">{t('dashboard.subtitle')}</p>
+        </div>
+      </header>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stat Cards — flat grid, number-dominant */}
+      <section aria-label="Summary statistics" className="dashboard-grid">
         {statCards.map((card, i) => (
-          <motion.div
-            key={card.title}
-            initial={{ opacity: 0, y: 12 }}
+          <motion.article
+            key={card.id}
+            id={`stat-${card.id}`}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.06 }}
-            className="bg-white dark:bg-slate-800 p-5 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm hover:shadow-md transition-shadow"
+            transition={{ delay: i * 0.05 }}
+            className={`stat-card${card.isAlert ? ' stat-card--alert' : ''}`}
+            aria-label={`${card.title}: ${card.value}`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-slate-500 dark:text-slate-400 text-xs font-medium uppercase tracking-wider">{card.title}</p>
-              <div className={`w-8 h-8 rounded-lg ${card.iconBg} flex items-center justify-center`}>
-                <card.icon className={`w-4 h-4 ${card.iconColor}`} />
-              </div>
-            </div>
-            <p className="text-3xl font-bold tracking-tight">{card.value}</p>
-            <div className={`h-1 w-12 rounded-full bg-gradient-to-r ${card.gradient} mt-3 opacity-60`} />
-          </motion.div>
+            <card.icon className="stat-card__icon" aria-hidden="true" />
+            <p className="stat-card__label">{card.title}</p>
+            <p
+              className="stat-card__value"
+              style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}
+            >
+              {card.value}
+            </p>
+          </motion.article>
         ))}
-      </div>
+      </section>
 
-      {/* Middle Section: Chart + Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Chart + Mini Metrics */}
+      <section aria-label="Visual breakdown" className="widget-grid">
         {/* Pie Chart */}
-        <div className="md:col-span-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex flex-col">
-          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200 mb-3">{t('dashboard.chartTitle')}</h3>
+        <div className="widget">
+          <h2 className="widget__title">{t('dashboard.chartTitle')}</h2>
           {pieData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={200}>
               <PieChart>
-                <Pie data={pieData} innerRadius={40} outerRadius={65} paddingAngle={4} dataKey="value" stroke="none">
+                <Pie
+                  data={pieData}
+                  innerRadius={50}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  dataKey="value"
+                  stroke="none"
+                >
                   {pieData.map((_entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={PIE_COLORS[index % PIE_COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip
-                  contentStyle={{ borderRadius: '10px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', fontSize: '12px' }}
+                  contentStyle={{
+                    background: 'var(--color-bg-surface)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    fontFamily: 'var(--font-family-mono)',
+                    fontSize: '12px',
+                    color: 'var(--color-text-primary)',
+                  }}
                   formatter={(val: any, name: any) => [`${val} ${t('dashboard.itemsCount')}`, name]}
                 />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
+                <Legend
+                  iconType="circle"
+                  iconSize={7}
+                  wrapperStyle={{
+                    fontSize: '11px',
+                    fontFamily: 'var(--font-family-mono)',
+                    color: 'var(--color-text-secondary)',
+                  }}
+                />
               </PieChart>
             </ResponsiveContainer>
           ) : (
-            <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">No data yet</div>
+            <div className="empty-state" style={{ border: 'none', padding: 'var(--space-6) 0' }}>
+              <Package className="empty-state__icon" aria-hidden="true" />
+              <p className="empty-state__text">
+                No parts tracked yet — add inventory to see the breakdown.
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Summary Cards */}
-        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex flex-col items-center justify-center text-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
-              <CalendarClock className="w-5 h-5 text-blue-500" />
-            </div>
-            <p className="text-2xl font-bold">{stats.total}</p>
-            <p className="text-xs text-slate-400 font-medium">{t('dashboard.totalParts')}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex flex-col items-center justify-center text-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
-              <Timer className="w-5 h-5 text-amber-500" />
-            </div>
-            <p className="text-2xl font-bold">{criticalParts.length}</p>
-            <p className="text-xs text-slate-400 font-medium">{t('dashboard.criticalItems')}</p>
-          </div>
-          <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm p-5 flex flex-col items-center justify-center text-center gap-2">
-            <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center">
-              <TrendingDown className="w-5 h-5 text-rose-500" />
-            </div>
-            <p className="text-2xl font-bold">{stats.expired}</p>
-            <p className="text-xs text-slate-400 font-medium">{t('dashboard.needReplacement')}</p>
-          </div>
+        {/* Secondary metrics */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 'var(--space-4)', alignContent: 'start' }}>
+          {[
+            { id: 'total-parts', Icon: CalendarClock, value: stats.total, label: t('dashboard.totalParts') },
+            { id: 'critical-count', Icon: Timer, value: criticalParts.length, label: t('dashboard.criticalItems'), alert: criticalParts.length > 0 },
+            { id: 'expired-count', Icon: TrendingDown, value: stats.expired, label: t('dashboard.needReplacement'), alert: stats.expired > 0 },
+          ].map(({ id, Icon, value, label, alert }) => (
+            <article
+              key={id}
+              id={id}
+              className={`widget${alert ? ' stat-card--alert' : ''}`}
+              style={{ alignItems: 'flex-start' }}
+              aria-label={`${label}: ${value}`}
+            >
+              <Icon
+                size={18}
+                style={{ color: alert ? 'var(--color-alert-base)' : 'var(--color-text-tertiary)', marginBottom: 'var(--space-3)' }}
+                aria-hidden="true"
+              />
+              <p
+                style={{
+                  fontFamily: 'var(--font-family-mono)',
+                  fontSize: '2rem',
+                  fontWeight: 600,
+                  lineHeight: 1.1,
+                  color: alert ? 'var(--color-alert-base)' : 'var(--color-text-primary)',
+                }}
+              >
+                {value}
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
+                {label}
+              </p>
+            </article>
+          ))}
         </div>
-      </div>
+      </section>
 
       {/* Critical Items Table */}
-      <div className="flex-1 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden flex flex-col min-h-0">
-        <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-amber-500/10 flex items-center justify-center">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold">{t('dashboard.criticalItems')}</h3>
-              <p className="text-xs text-slate-400">{t('dashboard.criticalSubtitle')}</p>
-            </div>
+      <section aria-label="Critical expiry items" style={{ marginTop: 'var(--space-6)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 'var(--space-4)' }}>
+          <div>
+            <h2 className="page-title" style={{ fontSize: '1rem' }}>{t('dashboard.criticalItems')}</h2>
+            <p className="page-subtitle">{t('dashboard.criticalSubtitle')}</p>
           </div>
-          <span className="text-xs font-medium bg-slate-100 dark:bg-slate-700 text-slate-500 px-2.5 py-1 rounded-full">{criticalParts.length} {t('dashboard.itemsCount')}</span>
+          {criticalParts.length > 0 && (
+            <span className="badge badge--alert">
+              <AlertTriangle size={10} aria-hidden="true" />
+              {criticalParts.length} {t('dashboard.itemsCount')}
+            </span>
+          )}
         </div>
 
-        <div className="flex-1 overflow-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wider border-b border-slate-100 dark:border-slate-700 sticky top-0 bg-slate-50 dark:bg-slate-900 z-10">
+        <div className="data-table-container">
+          <table className="data-table" aria-label="Parts expiring within 30 days">
+            <thead>
               <tr>
-                <th className="px-5 py-3 font-medium text-slate-400">{t('dashboard.tablePartName')}</th>
-                <th className="px-5 py-3 font-medium text-slate-400">{t('dashboard.tableSerialNo')}</th>
-                <th className="px-5 py-3 font-medium text-slate-400 text-center">{t('dashboard.tableQty')}</th>
-                <th className="px-5 py-3 font-medium text-slate-400">{t('dashboard.tableTimeRemaining')}</th>
-                <th className="px-5 py-3 font-medium text-slate-400 text-right">{t('dashboard.tableExpiresOn')}</th>
+                <th scope="col">{t('dashboard.tablePartName')}</th>
+                <th scope="col">{t('dashboard.tableSerialNo')}</th>
+                <th scope="col" className="center">{t('dashboard.tableQty')}</th>
+                <th scope="col">{t('dashboard.tableTimeRemaining')}</th>
+                <th scope="col" className="right">{t('dashboard.tableExpiresOn')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+            <tbody>
               {criticalParts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="text-center py-12">
-                    <ShieldCheck className="w-8 h-8 text-emerald-300 mx-auto mb-2" />
-                    <p className="text-slate-400 text-sm font-medium">{t('dashboard.noCritical')}</p>
+                  <td colSpan={5} style={{ padding: 'var(--space-8) var(--space-4)', textAlign: 'center' }}>
+                    <ShieldCheck
+                      size={36}
+                      style={{ color: 'var(--color-text-tertiary)', margin: '0 auto var(--space-3)' }}
+                      aria-hidden="true"
+                    />
+                    <p style={{ color: 'var(--color-text-secondary)', fontWeight: 500 }}>{t('dashboard.noCritical')}</p>
+                    <p style={{ color: 'var(--color-text-tertiary)', fontSize: '0.8rem', marginTop: 'var(--space-1)' }}>
+                      All tracked parts are within their valid service window.
+                    </p>
                   </td>
                 </tr>
               ) : criticalParts.map((part: any, i: number) => {
                 const days = dayjs(part.expiry_date).diff(dayjs(), 'day');
                 return (
                   <motion.tr
+                    key={part.id}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: i * 0.03 }}
-                    key={part.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors"
                   >
-                    <td className="px-5 py-3.5 font-medium">{part.part_name}</td>
-                    <td className="px-5 py-3.5 text-slate-400 font-mono text-xs">{part.serial_number || '—'}</td>
-                    <td className="px-5 py-3.5 text-center">
-                      <span className="bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded text-xs font-semibold">{part.quantity}</span>
+                    <td className="strong">{part.part_name}</td>
+                    <td className="mono" style={{ fontSize: '0.75rem' }}>
+                      {part.serial_number || '—'}
                     </td>
-                    <td className="px-5 py-3.5">
+                    <td className="center">
+                      <span className="badge badge--neutral">{part.quantity}</span>
+                    </td>
+                    <td>
                       {days < 0 ? (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-50 text-red-600 text-xs font-semibold border border-red-100">
-                          <AlertTriangle className="w-3 h-3" />
+                        <span className="badge badge--alert">
+                          <AlertTriangle size={9} aria-hidden="true" />
                           {t('inventory.statusExpired')} {Math.abs(days)}d ago
                         </span>
                       ) : (
-                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 text-amber-600 text-xs font-semibold border border-amber-100">
-                          <Timer className="w-3 h-3" />
-                          <CountdownTimer expiryDate={part.expiry_date} />
-                        </span>
+                        <CountdownTimer expiryDate={part.expiry_date} />
                       )}
                     </td>
-                    <td className="px-5 py-3.5 text-right text-slate-400 font-mono text-xs">
+                    <td className="right mono" style={{ fontSize: '0.75rem' }}>
                       {dayjs(part.expiry_date).format('DD MMM YYYY, HH:mm')}
                     </td>
                   </motion.tr>
@@ -264,7 +319,7 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
-      </div>
+      </section>
     </motion.div>
   );
 }

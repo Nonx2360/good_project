@@ -1,6 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useStore } from '../store';
-import { Search, SlidersHorizontal, X, Clock, CheckCircle2, AlertTriangle, ChevronUp, ChevronDown, Package } from 'lucide-react';
+import {
+  Search, SlidersHorizontal, X, Clock,
+  CheckCircle2, AlertTriangle, ChevronUp, ChevronDown, Package
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import dayjs from 'dayjs';
 import { useLanguage } from '../context/LanguageContext';
@@ -20,42 +23,54 @@ function getPartStatus(part: any): 'in_stock' | 'expired' | 'warning' | 'healthy
 function StatusBadge({ part }: { part: any }) {
   const status = getPartStatus(part);
   const { t } = useLanguage();
-  
+  const days = part.expiry_date ? dayjs(part.expiry_date).diff(dayjs(), 'day') : null;
+
   if (status === 'in_stock') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-100 text-slate-600 border-slate-200">
-        <Package className="w-3 h-3" /> {t('search.filterInStock')}
+      <span className="badge badge--neutral" aria-label={t('search.filterInStock')}>
+        <Package size={9} aria-hidden="true" />
+        {t('search.filterInStock')}
       </span>
     );
   }
-
-  const days = dayjs(part.expiry_date).diff(dayjs(), 'day');
-  
   if (status === 'expired') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-red-50 text-red-600 border-red-200">
-        <AlertTriangle className="w-3 h-3" /> {t('search.filterExpired')} {Math.abs(days)}d ago
+      <span className="badge badge--alert" aria-label={`${t('search.filterExpired')} ${Math.abs(days!)}d ago`}>
+        <AlertTriangle size={9} aria-hidden="true" />
+        {t('search.filterExpired')} {Math.abs(days!)}d ago
       </span>
     );
   }
   if (status === 'warning') {
     return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-amber-50 text-amber-600 border-amber-200">
-        <Clock className="w-3 h-3" /> {days === 0 ? 'Expires Today' : `${days}d left`}
+      <span className="badge badge--alert" aria-label={days === 0 ? 'Expires today' : `${days}d left`}>
+        <Clock size={9} aria-hidden="true" />
+        {days === 0 ? 'Expires today' : `${days}d left`}
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-emerald-50 text-emerald-600 border-emerald-200">
-      <CheckCircle2 className="w-3 h-3" /> {t('search.filterActive')}
+    <span className="badge badge--neutral" aria-label={t('search.filterActive')}>
+      <CheckCircle2 size={9} aria-hidden="true" />
+      {t('search.filterActive')}
     </span>
   );
 }
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <ChevronUp className="w-3 h-3 opacity-20" />;
-  return dir === 'asc' ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />;
+  const opacity = active ? 1 : 0.25;
+  return dir === 'asc' || !active
+    ? <ChevronUp size={11} style={{ opacity }} aria-hidden="true" />
+    : <ChevronDown size={11} style={{ opacity }} aria-hidden="true" />;
 }
+
+const FILTER_KEYS: { key: Filter; icon: any }[] = [
+  { key: 'all',      icon: SlidersHorizontal },
+  { key: 'in_stock', icon: Package },
+  { key: 'healthy',  icon: CheckCircle2 },
+  { key: 'warning',  icon: Clock },
+  { key: 'expired',  icon: AlertTriangle },
+];
 
 export default function SearchPage() {
   const { parts } = useStore();
@@ -72,7 +87,6 @@ export default function SearchPage() {
 
   const filtered = useMemo(() => {
     let list = [...parts];
-
     const q = query.toLowerCase();
     if (q) {
       list = list.filter((p: any) =>
@@ -81,11 +95,9 @@ export default function SearchPage() {
         String(p.id).includes(q)
       );
     }
-
     if (filter !== 'all') {
       list = list.filter((p: any) => getPartStatus(p) === filter);
     }
-
     list.sort((a: any, b: any) => {
       let av: any, bv: any;
       if (sortKey === 'expiry_date') {
@@ -99,172 +111,269 @@ export default function SearchPage() {
       if (av > bv) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-
     return list;
   }, [parts, query, filter, sortKey, sortDir]);
 
   const counts = useMemo(() => ({
-    all: parts.length,
+    all:      parts.length,
     in_stock: parts.filter((p: any) => getPartStatus(p) === 'in_stock').length,
-    healthy: parts.filter((p: any) => getPartStatus(p) === 'healthy').length,
-    warning: parts.filter((p: any) => getPartStatus(p) === 'warning').length,
-    expired: parts.filter((p: any) => getPartStatus(p) === 'expired').length,
+    healthy:  parts.filter((p: any) => getPartStatus(p) === 'healthy').length,
+    warning:  parts.filter((p: any) => getPartStatus(p) === 'warning').length,
+    expired:  parts.filter((p: any) => getPartStatus(p) === 'expired').length,
   }), [parts]);
 
-  const filterButtons: { key: Filter; label: string; icon: any; color: string; active: string }[] = [
-    { key: 'all', label: t('search.filterAll'), icon: SlidersHorizontal, color: 'text-slate-500', active: 'bg-slate-800 text-white border-slate-700' },
-    { key: 'in_stock', label: t('search.filterInStock'), icon: Package, color: 'text-indigo-500', active: 'bg-indigo-600 text-white border-indigo-600' },
-    { key: 'healthy', label: t('search.filterActive'), icon: CheckCircle2, color: 'text-green-500', active: 'bg-green-600 text-white border-green-600' },
-    { key: 'warning', label: t('search.filterExpiring'), icon: Clock, color: 'text-amber-500', active: 'bg-amber-500 text-white border-amber-500' },
-    { key: 'expired', label: t('search.filterExpired'), icon: AlertTriangle, color: 'text-red-500', active: 'bg-red-600 text-white border-red-600' },
-  ];
+  const filterLabels: Record<Filter, string> = {
+    all:      t('search.filterAll'),
+    in_stock: t('search.filterInStock'),
+    healthy:  t('search.filterActive'),
+    warning:  t('search.filterExpiring'),
+    expired:  t('search.filterExpired'),
+  };
 
   const cols: { key: SortKey; label: string }[] = [
-    { key: 'part_name', label: t('dashboard.tablePartName') },
-    { key: 'serial_number', label: t('dashboard.tableSerialNo') },
-    { key: 'quantity', label: t('dashboard.tableQty') },
-    { key: 'expiry_date', label: t('dashboard.tableExpiresOn') },
+    { key: 'part_name',    label: t('dashboard.tablePartName') },
+    { key: 'serial_number',label: t('dashboard.tableSerialNo') },
+    { key: 'quantity',     label: t('dashboard.tableQty') },
+    { key: 'expiry_date',  label: t('dashboard.tableExpiresOn') },
   ];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-4 md:p-8 h-full flex flex-col gap-6"
+      transition={{ duration: 0.2 }}
     >
-      <div>
-        <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3 mb-1">
-          <Search className="text-indigo-500 w-7 h-7" />
-          {t('search.title')}
-        </h2>
-        <p className="text-slate-400 text-sm">{t('search.subtitle')}</p>
-      </div>
+      {/* Page Header */}
+      <header className="page-header">
+        <div>
+          <h1 className="page-title">{t('search.title')}</h1>
+          <p className="page-subtitle">{t('search.subtitle')}</p>
+        </div>
+      </header>
 
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
+      {/* Search Bar */}
+      <div style={{ position: 'relative', marginBottom: 'var(--space-4)' }}>
+        <Search
+          size={16}
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: 'var(--space-3)',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: 'var(--color-text-tertiary)',
+            pointerEvents: 'none',
+          }}
+        />
         <input
           id="search-input"
-          type="text"
+          type="search"
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder={t('search.placeholder')}
-          className="w-full pl-12 pr-10 py-3.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none transition-all text-sm shadow-sm"
+          className="form-input"
+          style={{ paddingLeft: 'calc(var(--space-3) * 2 + 16px)', paddingRight: query ? 'var(--space-8)' : 'var(--space-3)' }}
+          aria-label={t('search.placeholder')}
           autoFocus
         />
         {query && (
-          <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-            <X className="w-4 h-4" />
+          <button
+            id="btn-clear-query"
+            onClick={() => setQuery('')}
+            aria-label="Clear search"
+            style={{
+              position: 'absolute',
+              right: 'var(--space-3)',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-text-tertiary)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            <X size={14} aria-hidden="true" />
           </button>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {filterButtons.map(btn => {
-          const Icon = btn.icon;
+      {/* Filter Tabs */}
+      <nav
+        aria-label="Filter by part status"
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          gap: 'var(--space-2)',
+          marginBottom: 'var(--space-5)',
+        }}
+      >
+        {FILTER_KEYS.map(({ key, icon: Icon }) => {
+          const isActive = filter === key;
+          const isAlert = (key === 'warning' || key === 'expired') && isActive;
           return (
             <button
-              key={btn.key}
-              id={`filter-${btn.key}`}
-              onClick={() => setFilter(btn.key)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full border text-sm font-medium transition-all ${
-                filter === btn.key
-                  ? btn.active
-                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400'
-              }`}
+              key={key}
+              id={`filter-${key}`}
+              onClick={() => setFilter(key)}
+              aria-pressed={isActive}
+              aria-label={`Filter: ${filterLabels[key]} (${counts[key]})`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                padding: 'var(--space-2) var(--space-3)',
+                fontFamily: 'var(--font-family-mono)',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+                borderRadius: 'var(--radius-sm)',
+                border: `1px solid ${isActive ? (isAlert ? 'var(--color-alert-border)' : 'var(--color-border-active)') : 'var(--color-border)'}`,
+                background: isActive
+                  ? (isAlert ? 'var(--color-alert-bg)' : 'var(--color-bg-elevated)')
+                  : 'transparent',
+                color: isActive
+                  ? (isAlert ? 'var(--color-alert-text)' : 'var(--color-text-primary)')
+                  : 'var(--color-text-secondary)',
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+                whiteSpace: 'nowrap',
+              }}
             >
-              <Icon className={`w-4 h-4 ${filter === btn.key ? 'text-white' : btn.color}`} />
-              {btn.label}
-              <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${filter === btn.key ? 'bg-white/20' : 'bg-slate-100 dark:bg-slate-700'}`}>
-                {counts[btn.key]}
+              <Icon size={12} aria-hidden="true" />
+              {filterLabels[key]}
+              <span
+                style={{
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  color: isAlert && isActive ? 'var(--color-alert-text)' : 'var(--color-text-tertiary)',
+                }}
+              >
+                {counts[key]}
               </span>
             </button>
           );
         })}
+      </nav>
+
+      {/* Results Summary Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 'var(--space-3)',
+          fontFamily: 'var(--font-family-mono)',
+          fontSize: '0.75rem',
+          color: 'var(--color-text-tertiary)',
+        }}
+      >
+        <span>
+          {filtered.length === 0
+            ? t('search.noResults')
+            : `${filtered.length} result${filtered.length !== 1 ? 's' : ''}${query ? ` for "${query}"` : ''}`}
+        </span>
+        {(query || filter !== 'all') && (
+          <button
+            id="btn-clear-filters"
+            onClick={() => { setQuery(''); setFilter('all'); }}
+            aria-label="Clear all filters"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 'var(--space-1)',
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-text-secondary)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-family-mono)',
+              fontSize: '0.75rem',
+              textTransform: 'uppercase',
+              letterSpacing: '0.03em',
+            }}
+          >
+            <X size={11} aria-hidden="true" />
+            {t('search.clearFilters')}
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col">
-        <div className="px-6 py-3 border-b border-slate-100 dark:border-slate-700 text-sm text-slate-500 flex items-center justify-between">
-          <span>
-            {filtered.length === 0 ? t('search.noResults') : t('search.resultsCount', { count: filtered.length })}
-            {query && <span className="ml-1">{t('search.resultsFor', { query })}</span>}
-          </span>
-          {(query || filter !== 'all') && (
-            <button
-              onClick={() => { setQuery(''); setFilter('all'); }}
-              className="text-xs text-indigo-500 hover:text-indigo-700 flex items-center gap-1"
-            >
-              <X className="w-3 h-3" /> {t('search.clearFilters')}
-            </button>
-          )}
-        </div>
-
-        <div className="overflow-auto flex-1">
-          <table className="w-full text-sm text-left whitespace-nowrap">
-            <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-10">
-              <tr>
-                <th className="px-6 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wider">{t('inventory.tableId')}</th>
-                {cols.map(col => (
-                  <th
-                    key={col.key}
-                    className="px-6 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wider cursor-pointer select-none hover:text-slate-800 dark:hover:text-white transition-colors"
-                    onClick={() => handleSort(col.key)}
-                  >
-                    <span className="flex items-center gap-1">
-                      {col.label}
-                      <SortIcon active={sortKey === col.key} dir={sortDir} />
-                    </span>
-                  </th>
-                ))}
-                <th className="px-6 py-3 font-semibold text-slate-500 text-xs uppercase tracking-wider text-right">{t('inventory.tableStatus')}</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-              <AnimatePresence mode="popLayout">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="text-center py-16">
-                      <Search className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-                      <p className="text-slate-400 font-medium">{t('search.noResults')}</p>
-                      <p className="text-slate-300 text-xs mt-1">{t('search.noResultsSub')}</p>
-                    </td>
-                  </tr>
-                ) : filtered.map((p: any) => {
-                  const status = getPartStatus(p);
-                  const rowColor =
-                    status === 'expired' ? 'bg-red-50/40 dark:bg-red-900/10' :
-                    status === 'warning' ? 'bg-amber-50/40 dark:bg-amber-900/10' :
-                    status === 'in_stock' ? 'bg-indigo-50/20 dark:bg-indigo-900/5' : '';
-                  return (
-                    <motion.tr
-                      key={p.id}
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className={`hover:bg-indigo-50/30 dark:hover:bg-indigo-900/10 transition-colors ${rowColor}`}
+      {/* Results Table */}
+      <section aria-label="Search results">
+        {filtered.length === 0 ? (
+          <div className="empty-state">
+            <Search className="empty-state__icon" aria-hidden="true" />
+            <p className="empty-state__title">No parts match your search</p>
+            <p className="empty-state__text">
+              {query
+                ? `Nothing found for "${query}". Try a different name, serial number, or ID.`
+                : 'No parts match the active filter. Try selecting a different status.'}
+            </p>
+          </div>
+        ) : (
+          <div className="data-table-container">
+            <table className="data-table" aria-label="Search results table">
+              <thead>
+                <tr>
+                  <th scope="col">{t('inventory.tableId')}</th>
+                  {cols.map(col => (
+                    <th
+                      key={col.key}
+                      scope="col"
+                      onClick={() => handleSort(col.key)}
+                      aria-sort={sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none'}
+                      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
                     >
-                      <td className="px-6 py-4 text-slate-400 font-mono text-xs">#{String(p.id).padStart(4,'0')}</td>
-                      <td className="px-6 py-4 font-semibold">{p.part_name}</td>
-                      <td className="px-6 py-4 text-slate-500 font-mono text-xs">{p.serial_number || '—'}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className="bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-full font-bold text-xs">
-                          {p.quantity}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs text-slate-600 dark:text-slate-300">
-                        {p.expiry_date ? dayjs(p.expiry_date).format('MMM DD, YYYY HH:mm') : '—'}
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <StatusBadge part={p} />
-                      </td>
-                    </motion.tr>
-                  );
-                })}
-              </AnimatePresence>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {col.label}
+                        <SortIcon active={sortKey === col.key} dir={sortDir} />
+                      </span>
+                    </th>
+                  ))}
+                  <th scope="col" className="right">{t('inventory.tableStatus')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                <AnimatePresence mode="popLayout">
+                  {filtered.map((p: any) => {
+                    const status = getPartStatus(p);
+                    const isAlertRow = status === 'expired' || status === 'warning';
+                    return (
+                      <motion.tr
+                        key={p.id}
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        style={isAlertRow ? { background: 'var(--color-alert-bg)' } : {}}
+                      >
+                        <td className="mono" style={{ fontSize: '0.75rem' }}>
+                          #{String(p.id).padStart(4, '0')}
+                        </td>
+                        <td className="strong">{p.part_name}</td>
+                        <td className="mono" style={{ fontSize: '0.75rem', color: 'var(--color-text-tertiary)' }}>
+                          {p.serial_number || '—'}
+                        </td>
+                        <td className="center">
+                          <span className="badge badge--neutral">{p.quantity}</span>
+                        </td>
+                        <td className="mono" style={{ fontSize: '0.75rem' }}>
+                          {p.expiry_date ? dayjs(p.expiry_date).format('MMM DD, YYYY HH:mm') : '—'}
+                        </td>
+                        <td className="right">
+                          <StatusBadge part={p} />
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
     </motion.div>
   );
 }

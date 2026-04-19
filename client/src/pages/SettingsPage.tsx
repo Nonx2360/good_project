@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getSettings, updateSettings, testDiscord } from '../api';
-import { Save, BellDot, CheckCircle2, AlertCircle, ExternalLink, Send, Globe, Layout } from 'lucide-react';
+import { Save, BellDot, CheckCircle2, AlertCircle, ExternalLink, Send, Globe } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { motion } from 'framer-motion';
 
 export default function SettingsPage() {
   const { language, setLanguage, t } = useLanguage();
@@ -15,8 +16,6 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSettings();
-    
-    // Check for OAuth callbacks
     const success = searchParams.get('success');
     const error = searchParams.get('error');
     if (success) {
@@ -32,24 +31,25 @@ export default function SettingsPage() {
     try {
       const data = await getSettings();
       if (data.client_id) setClientId(data.client_id);
-      if (data.client_secret) setClientSecret('********'); // mask it
+      if (data.client_secret) setClientSecret('••••••••');
       if (data.webhook_active) setWebhookActive(true);
-    } catch (e) {
+    } catch {
       toast.error(t('settings.toastLoadFail'));
     }
   };
 
-  const handleSave = async () => {
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
     setLoading(true);
     try {
       const payload: any = { client_id: clientId };
-      if (clientSecret && clientSecret !== '********') {
+      if (clientSecret && clientSecret !== '••••••••') {
         payload.client_secret = clientSecret;
       }
       await updateSettings(payload);
       toast.success(t('settings.toastSaveSuccess'));
       loadSettings();
-    } catch (e) {
+    } catch {
       toast.error(t('settings.toastSaveFail'));
     } finally {
       setLoading(false);
@@ -74,128 +74,217 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl mx-auto w-full space-y-8">
-      <h2 className="text-2xl md:text-3xl font-bold flex items-center gap-3">
-        <Layout className="text-indigo-500 w-6 h-6 md:w-8 md:h-8" /> 
-        {t('sidebar.settings')}
-      </h2>
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2 }}
+    >
+      {/* Page Header */}
+      <header className="page-header" style={{ marginBottom: 'var(--space-6)' }}>
+        <div>
+          <h1 className="page-title">{t('sidebar.settings')}</h1>
+          <p className="page-subtitle">Configure integrations and display preferences.</p>
+        </div>
+      </header>
 
-      {/* Language Settings */}
-      <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
-        <div className="flex items-center gap-3 mb-6">
-          <Globe className="w-5 h-5 text-indigo-500" />
-          <h3 className="text-lg md:text-xl font-semibold">{t('settings.langCardTitle')}</h3>
-        </div>
-        
-        <div className="space-y-4">
-          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300">
-            {t('settings.labelLanguage')}
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => setLanguage('en')}
-              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all font-medium ${
-                language === 'en'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
-                  : 'border-slate-100 dark:border-slate-700 hover:border-indigo-200'
-              }`}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', maxWidth: 680 }}>
+
+        {/* ── Language Settings ── */}
+        <section
+          aria-labelledby="lang-section-title"
+          className="widget"
+        >
+          <header style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
+            <Globe size={16} style={{ color: 'var(--color-text-tertiary)' }} aria-hidden="true" />
+            <h2
+              id="lang-section-title"
+              style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}
             >
-              🇺🇸 {t('settings.en')}
-            </button>
-            <button
-              onClick={() => setLanguage('th')}
-              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 transition-all font-medium ${
-                language === 'th'
-                  ? 'border-indigo-500 bg-indigo-50 text-indigo-700 dark:bg-indigo-900/20'
-                  : 'border-slate-100 dark:border-slate-700 hover:border-indigo-200'
-              }`}
-            >
-              🇹🇭 {t('settings.th')}
-            </button>
-          </div>
-        </div>
-      </div>
-      
-      {/* Discord Integration */}
-      <div className="bg-white dark:bg-slate-800 p-6 md:p-8 rounded-2xl shadow-lg border border-slate-100 dark:border-slate-700">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <BellDot className="w-5 h-5 text-indigo-500" />
-            <h3 className="text-lg md:text-xl font-semibold">{t('settings.discordCardTitle')}</h3>
-          </div>
-          {webhookActive ? (
-            <span className="flex items-center gap-1.5 px-3 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">
-               <CheckCircle2 className="w-4 h-4" /> {t('settings.connected')}
-            </span>
-          ) : (
-             <span className="flex items-center gap-1.5 px-3 py-1 bg-slate-100 text-slate-500 text-xs font-bold rounded-full border border-slate-200">
-                <AlertCircle className="w-4 h-4" /> {t('settings.notConnected')}
-            </span>
-          )}
-        </div>
-        
-        <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
-          {t('settings.discordDesc')}
-        </p>
-        
-        <div className="space-y-4 mb-8">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              {t('settings.labelClientId')}
-            </label>
-            <input
-              type="text"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder="e.g. 123456789012345678"
-              className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-transparent transition-all outline-none font-mono"
-            />
-          </div>
+              {t('settings.langCardTitle')}
+            </h2>
+          </header>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              {t('settings.labelClientSecret')}
-            </label>
-            <input
-              type="password"
-              value={clientSecret}
-              onChange={(e) => setClientSecret(e.target.value)}
-              placeholder="e.g. xxxxxxxxxxxxxxxxxxxxxx"
-              className="w-full px-4 py-3 rounded-lg border border-slate-300 dark:border-slate-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-transparent transition-all outline-none font-mono"
-            />
-          </div>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3">
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="flex items-center justify-center auto gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600 px-6 py-3 rounded-xl font-medium transition-colors shadow-sm disabled:opacity-50"
-          >
-            <Save className="w-5 h-5" />
-            {loading ? t('settings.btnSaving') : t('settings.btnSaveCreds')}
-          </button>
-          
-          <button
-            onClick={handleConnectDiscord}
-            className="flex flex-1 items-center justify-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-md disabled:opacity-50"
-          >
-            <ExternalLink className="w-5 h-5" />
-            {t('settings.btnConnectDiscord')}
-          </button>
-
-          {webhookActive && (
-            <button
-              onClick={handleTestNotification}
-              title={t('settings.btnTest')}
-              className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white px-6 py-3 rounded-xl font-medium transition-colors shadow-md"
+            <p
+              className="form-label"
+              id="lang-group-label"
+              style={{ marginBottom: 'var(--space-3)' }}
             >
-              <Send className="w-5 h-5" />
-              {t('settings.btnTest')}
-            </button>
-          )}
-        </div>
+              {t('settings.labelLanguage')}
+            </p>
+            <div
+              role="group"
+              aria-labelledby="lang-group-label"
+              style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-2)' }}
+            >
+              {(['en', 'th'] as const).map(lang => {
+                const isActive = language === lang;
+                return (
+                  <button
+                    key={lang}
+                    id={`lang-${lang}`}
+                    onClick={() => setLanguage(lang)}
+                    aria-pressed={isActive}
+                    aria-label={`Set language to ${t(`settings.${lang}`)}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 'var(--space-2)',
+                      padding: 'var(--space-3)',
+                      fontFamily: 'var(--font-family-mono)',
+                      fontSize: '0.875rem',
+                      fontWeight: 500,
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1px solid ${isActive ? 'var(--color-border-active)' : 'var(--color-border)'}`,
+                      background: isActive ? 'var(--color-bg-elevated)' : 'transparent',
+                      color: isActive ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      transition: 'all var(--transition-fast)',
+                    }}
+                  >
+                    {lang === 'en' ? '🇺🇸' : '🇹🇭'} {t(`settings.${lang}`)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Discord Integration ── */}
+        <section
+          aria-labelledby="discord-section-title"
+          className="widget"
+        >
+          <header style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 'var(--space-5)',
+            flexWrap: 'wrap',
+            gap: 'var(--space-2)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
+              <BellDot size={16} style={{ color: 'var(--color-text-tertiary)' }} aria-hidden="true" />
+              <h2
+                id="discord-section-title"
+                style={{ fontSize: 'var(--font-size-base)', fontWeight: 500, color: 'var(--color-text-primary)' }}
+              >
+                {t('settings.discordCardTitle')}
+              </h2>
+            </div>
+
+            {webhookActive ? (
+              <span
+                className="badge badge--neutral"
+                role="status"
+                aria-label="Discord connected"
+                style={{ color: 'var(--color-text-primary)', borderColor: 'var(--color-border-active)' }}
+              >
+                <CheckCircle2 size={9} aria-hidden="true" />
+                {t('settings.connected')}
+              </span>
+            ) : (
+              <span
+                className="badge badge--neutral"
+                role="status"
+                aria-label="Discord not connected"
+              >
+                <AlertCircle size={9} aria-hidden="true" />
+                {t('settings.notConnected')}
+              </span>
+            )}
+          </header>
+
+          <p style={{
+            color: 'var(--color-text-secondary)',
+            fontSize: 'var(--font-size-sm)',
+            marginBottom: 'var(--space-5)',
+            lineHeight: 1.6,
+          }}>
+            {t('settings.discordDesc')}
+          </p>
+
+          {/* Credentials form — proper <form> element for password field */}
+          <form onSubmit={handleSave} aria-label="Discord credentials form">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', marginBottom: 'var(--space-5)' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="field-client-id">
+                  {t('settings.labelClientId')}
+                </label>
+                <input
+                  id="field-client-id"
+                  type="text"
+                  value={clientId}
+                  onChange={e => setClientId(e.target.value)}
+                  placeholder="e.g. 123456789012345678"
+                  className="form-input"
+                  autoComplete="username"
+                  spellCheck={false}
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="field-client-secret">
+                  {t('settings.labelClientSecret')}
+                </label>
+                <input
+                  id="field-client-secret"
+                  type="password"
+                  value={clientSecret}
+                  onChange={e => setClientSecret(e.target.value)}
+                  placeholder="••••••••••••••••••••••"
+                  className="form-input"
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
+
+            {/* Actions — responsive row/column */}
+            <div style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 'var(--space-2)',
+            }}>
+              <button
+                id="btn-save-creds"
+                type="submit"
+                disabled={loading}
+                className="btn btn--secondary"
+                aria-label={loading ? t('settings.btnSaving') : t('settings.btnSaveCreds')}
+                style={{ opacity: loading ? 0.5 : 1 }}
+              >
+                <Save size={14} aria-hidden="true" />
+                {loading ? t('settings.btnSaving') : t('settings.btnSaveCreds')}
+              </button>
+
+              <button
+                id="btn-connect-discord"
+                type="button"
+                onClick={handleConnectDiscord}
+                className="btn btn--primary"
+                aria-label={t('settings.btnConnectDiscord')}
+              >
+                <ExternalLink size={14} aria-hidden="true" />
+                {t('settings.btnConnectDiscord')}
+              </button>
+
+              {webhookActive && (
+                <button
+                  id="btn-test-notification"
+                  type="button"
+                  onClick={handleTestNotification}
+                  className="btn btn--secondary"
+                  aria-label={t('settings.btnTest')}
+                >
+                  <Send size={14} aria-hidden="true" />
+                  {t('settings.btnTest')}
+                </button>
+              )}
+            </div>
+          </form>
+        </section>
       </div>
-    </div>
+    </motion.div>
   );
 }
